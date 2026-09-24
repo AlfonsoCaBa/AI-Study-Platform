@@ -20,4 +20,19 @@ Build a small full-stack application where users can organize courses and study 
 
 ## Status
 
-Project setup in progress. The first implementation milestone will be a minimal FastAPI backend with a health-check endpoint.
+The backend has a minimal health-check endpoint at `GET /health`.
+
+## Run the backend locally (Windows PowerShell)
+
+From the project root:
+
+```powershell
+py -3.13 -m venv backend/.venv
+backend/.venv/Scripts/python.exe -m pip install -r backend/requirements.txt
+cd backend
+.venv/Scripts/python.exe -m fastapi dev app/main.py
+```
+
+Open `http://127.0.0.1:8000/health` to see `{"status":"ok"}`. FastAPI also provides interactive API documentation at `http://127.0.0.1:8000/docs`. Press `Ctrl+C` to stop the server.
+
+The `.venv` directory is a local Python environment. Git ignores it because installed packages can be restored from `backend/requirements.txt`.
