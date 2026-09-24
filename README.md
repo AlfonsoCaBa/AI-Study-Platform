@@ -20,7 +20,7 @@ Build a small full-stack application where users can organize courses and study 
 
 ## Status
 
-The backend has a minimal health-check endpoint at `GET /health`.
+The backend has a minimal health-check endpoint at `GET /health`. The frontend has a home page at `/`.
 
 ## Run the backend locally (Windows PowerShell)
 
@@ -36,3 +36,17 @@ cd backend
 Open `http://127.0.0.1:8000/health` to see `{"status":"ok"}`. FastAPI also provides interactive API documentation at `http://127.0.0.1:8000/docs`. Press `Ctrl+C` to stop the server.
 
 The `.venv` directory is a local Python environment. Git ignores it because installed packages can be restored from `backend/requirements.txt`.
+
+## Run the frontend locally (Windows PowerShell)
+
+From the project root:
+
+```powershell
+cd frontend
+npm ci
+npm run dev
+```
+
+Open `http://localhost:3000` to see the home page. Press `Ctrl+C` to stop the server. `npm ci` installs the versions recorded in `frontend/package-lock.json`; the `node_modules` directory stays local and is ignored by Git.
+
+If npm reports `UNABLE_TO_VERIFY_LEAF_SIGNATURE` on Windows, run `$env:NODE_OPTIONS = "--use-system-ca"` in that PowerShell session and retry `npm ci`.
