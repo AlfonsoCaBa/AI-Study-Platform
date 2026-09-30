@@ -56,3 +56,23 @@ If npm reports `UNABLE_TO_VERIFY_LEAF_SIGNATURE` on Windows, run `$env:NODE_OPTI
 Start the backend and frontend in separate PowerShell terminals using the commands above. At `http://localhost:3000`, the page first shows a loading message and then `API conectada`. If the backend is stopped or unreachable, it shows `No se pudo conectar con la API`.
 
 The browser requests `http://127.0.0.1:8000/health`. Since the frontend runs on port 3000 and the API on port 8000, the backend allows the local frontend origins through CORS. The API URL is fixed for local development; we will make it configurable when deployment becomes relevant.
+
+## Run PostgreSQL locally (Windows PowerShell)
+
+Install and start Docker Desktop, then run these commands from the project root:
+
+```powershell
+Copy-Item .env.example .env
+```
+
+Open `.env` and replace `POSTGRES_PASSWORD` with a password of your own. This file stays on your computer; Git ignores it. The other two values name the database user and database.
+
+```powershell
+docker compose up -d
+docker compose ps
+docker compose exec db psql -U study_user -d study_platform -c "SELECT 1;"
+```
+
+The last command should return a row containing `1`. It runs `psql`, PostgreSQL's command-line client, inside the container. If PostgreSQL is still starting, wait a few seconds and retry the query. If you change `POSTGRES_USER` or `POSTGRES_DB` in `.env`, use your values in the `psql` command too. PostgreSQL is reachable only from this computer on port 5432.
+
+To stop the database, run `docker compose down`. The named Docker volume keeps its data for the next start. The frontend and backend do not use the database yet; connecting FastAPI will be a later milestone.

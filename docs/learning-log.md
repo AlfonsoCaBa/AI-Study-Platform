@@ -5,6 +5,7 @@ AI Study Platform es un proyecto para aprender desarrollo de software construyen
 ## Índice de hitos
 
 1. [Estado inicial del proyecto](#estado-inicial-del-proyecto)
+2. [PostgreSQL local](#postgresql-local)
 
 Los siguientes hitos se añadirán cuando se documenten. Cada uno usará las mismas secciones: objetivo, archivos modificados, flujo, conceptos nuevos, decisiones importantes y dudas pendientes.
 
@@ -55,6 +56,47 @@ Conceptos presentes en el código actual, para estudiar o repasar; este registro
 
 No hay dudas personales registradas todavía. Se añadirán aquí cuando aparezcan.
 
+## PostgreSQL local
+
+### Objetivo
+
+Preparar una base de datos PostgreSQL para desarrollo local y comprobarla con una consulta sencilla. La comprobación se completó: el contenedor quedó en estado `Up` y `SELECT 1` devolvió una fila con `1`.
+
+### Archivos modificados
+
+- `compose.yaml`: define el servicio de PostgreSQL, el puerto local y un volumen para conservar los datos.
+- `.env.example`: muestra las variables necesarias; cada persona crea su propio `.env` con una contraseña local.
+- `README.md`: explica cómo iniciar, comprobar y detener PostgreSQL.
+- `docs/learning-log.md`: registra este hito.
+
+Se comprobó que `.gitignore` ya excluye `.env`; no fue necesario modificarlo.
+
+### Flujo sencillo
+
+1. Docker Compose lee `compose.yaml` y los valores locales de `.env`.
+2. Docker inicia PostgreSQL y guarda sus datos en un volumen.
+3. `psql` envía `SELECT 1` a PostgreSQL; la respuesta esperada es `1`.
+4. FastAPI y el frontend todavía no se conectan a la base de datos.
+
+### Conceptos nuevos
+
+- **Base de datos:** sistema que conserva y permite consultar información.
+- **Tabla y fila:** una tabla agrupa datos del mismo tipo; cada fila representa un registro. Aún no hemos creado tablas propias.
+- **Volumen de Docker:** almacenamiento que conserva los datos aunque se detenga el contenedor.
+- **Variable de entorno:** valor de configuración que se entrega al proceso sin fijarlo directamente en el código.
+- **SQL:** lenguaje para consultar y modificar datos; `SELECT 1` es una primera consulta sin tablas.
+
+### Decisiones importantes
+
+- Usar Docker Compose para repetir la misma configuración local con pocos comandos.
+- Mantener la contraseña en `.env`, excluido de Git, y publicar sólo `.env.example`.
+- Exponer PostgreSQL únicamente en `127.0.0.1` para desarrollo local.
+- Posponer la conexión con FastAPI, las tablas de cursos y las migraciones para hitos posteriores.
+
+### Dudas pendientes
+
+No hay dudas personales registradas todavía.
+
 ## Glosario
 
 - **Frontend:** parte de la aplicación con la que interactúa el usuario en el navegador.
@@ -65,3 +107,7 @@ No hay dudas personales registradas todavía. Se añadirán aquí cuando aparezc
 - **CORS:** mecanismo del navegador que requiere permiso del servidor para que una página lea respuestas de otro origen.
 - **Estado (React):** dato de un componente que, al cambiar, puede actualizar lo que muestra la pantalla.
 - **Efecto (React):** código que se ejecuta después del renderizado para interactuar con algo externo al componente, como una API.
+- **PostgreSQL:** sistema de base de datos relacional que usaremos para guardar cursos y notas.
+- **Docker Compose:** herramienta que inicia servicios definidos en un archivo de configuración.
+- **Volumen:** almacenamiento de Docker que puede conservar datos entre ejecuciones de un contenedor.
+- **SQL:** lenguaje para consultar y modificar datos de una base de datos relacional.
