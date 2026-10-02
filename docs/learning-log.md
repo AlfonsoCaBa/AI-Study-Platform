@@ -6,6 +6,7 @@ AI Study Platform es un proyecto para aprender desarrollo de software construyen
 
 1. [Estado inicial del proyecto](#estado-inicial-del-proyecto)
 2. [PostgreSQL local](#postgresql-local)
+3. [Cursos: tabla y API](#cursos-tabla-y-api)
 
 Los siguientes hitos se añadirán cuando se documenten. Cada uno usará las mismas secciones: objetivo, archivos modificados, flujo, conceptos nuevos, decisiones importantes y dudas pendientes.
 
@@ -97,6 +98,61 @@ Se comprobó que `.gitignore` ya excluye `.env`; no fue necesario modificarlo.
 
 No hay dudas personales registradas todavía.
 
+## Cursos: tabla y API
+
+### Objetivo
+
+Crear y listar cursos mediante FastAPI, con datos guardados en PostgreSQL. Esta es la primera parte del hito de cursos; el formulario y la lista del frontend vendrán después.
+
+La implementación se comprobó con scripts temporales: primero validación y respuestas de la API con SQLite, después migración y rutas contra PostgreSQL en un esquema de prueba separado. Pasaron creación y listado, rechazo de entradas inválidas, límite de 100 caracteres, nombres repetidos, texto con apariencia de SQL y lectura desde un proceso nuevo de Python. También se verificaron CORS, la respuesta `503`, la independencia de `/health` y la concordancia del modelo con la migración mediante `alembic check`. El esquema de prueba se eliminó al terminar.
+
+El usuario aplicó la migración y creó un curso desde `/docs` con respuesta `201`. Después de reiniciar FastAPI, una consulta directa a PostgreSQL y otra a `GET /courses` devolvieron las mismas tres filas `Algebra`; repetir el `POST` crea filas nuevas porque los nombres repetidos se permiten. Una petición con sólo espacios devolvió `422` y no añadió filas.
+
+### Archivos modificados
+
+- `backend/requirements.txt`: declara SQLAlchemy, Psycopg, Alembic, python-dotenv y Pydantic como dependencias del backend.
+- `backend/app/__init__.py`: permite reconocer `app` como un paquete de Python.
+- `backend/app/db.py`: lee el `.env` de la raíz, configura la conexión local y entrega una sesión por petición.
+- `backend/app/models.py`: describe la tabla `courses`, con `id` como clave primaria y `name` de hasta 100 caracteres.
+- `backend/app/schemas.py`: valida el nombre recibido y define el JSON de respuesta.
+- `backend/app/main.py`: añade `POST /courses`, `GET /courses`, permiso CORS para JSON `POST` y una respuesta `503` para fallas de conexión.
+- `backend/alembic.ini` y `backend/migrations/env.py`: conectan Alembic con la configuración y el modelo.
+- `backend/migrations/script.py.mako`: plantilla para futuras migraciones.
+- `backend/migrations/versions/0001_create_courses.py`: primera migración, que crea `courses`.
+- `README.md`: documenta la migración, la prueba manual y errores habituales.
+- `docs/learning-log.md`: registra esta parte del hito.
+
+### Flujo sencillo
+
+1. En `/docs` se envía `POST /courses` con un nombre en JSON.
+2. Pydantic elimina espacios al principio y al final y rechaza nombres vacíos o mayores de 100 caracteres.
+3. FastAPI recibe una sesión de base de datos mediante `Depends(get_session)`.
+4. SQLAlchemy guarda el curso y `session.commit()` confirma la escritura. PostgreSQL asigna el `id`.
+5. La API devuelve `201` con el curso creado. `GET /courses` consulta los cursos por `id` y devuelve una lista.
+
+### Conceptos nuevos
+
+- **Clave primaria:** identificador único de cada fila; aquí es `id`.
+- **ORM:** herramienta que relaciona objetos de Python con tablas y genera las consultas SQL.
+- **Modelo y esquema de API:** el modelo describe almacenamiento; el esquema define qué JSON se acepta y devuelve.
+- **Migración:** cambio explícito de estructura de la base, guardado en el repositorio. Alembic registra las migraciones aplicadas.
+- **Sesión y transacción:** la sesión organiza las operaciones con la base; `commit()` confirma la transacción, y cerrar la sesión descarta cambios pendientes.
+- **Dependencia de FastAPI:** `Depends` permite entregar a una ruta un recurso, como una sesión, y cerrarlo al terminar la petición.
+
+### Decisiones importantes
+
+- Usar SQLAlchemy con Psycopg y funciones síncronas para esta primera conexión.
+- Crear la tabla mediante Alembic. El arranque de FastAPI no modifica la estructura automáticamente.
+- Leer las credenciales existentes de `.env` y construir la URL con `URL.create` para admitir caracteres especiales en la contraseña.
+- Mantener las rutas en `main.py` mientras son pocas; aún no hay reglas de negocio que requieran una capa de servicios.
+- Permitir nombres repetidos; cada curso se distingue por su `id`.
+- Mantener `/health` como comprobación del proceso de la API. La conexión con PostgreSQL se comprueba al usar cursos.
+- Reservar cuentas y comprobación de propietario para sus hitos. La API actual se usa sólo en desarrollo local.
+
+### Dudas pendientes
+
+Queda aclarar por qué en una consulta desde `/docs` no se vio el curso tras reiniciar FastAPI. Las consultas directas a PostgreSQL y a la API sí mostraron los datos. Cerrar o dejar abiertos los paneles **Try it out** no cambia las filas guardadas.
+
 ## Glosario
 
 - **Frontend:** parte de la aplicación con la que interactúa el usuario en el navegador.
@@ -111,3 +167,8 @@ No hay dudas personales registradas todavía.
 - **Docker Compose:** herramienta que inicia servicios definidos en un archivo de configuración.
 - **Volumen:** almacenamiento de Docker que puede conservar datos entre ejecuciones de un contenedor.
 - **SQL:** lenguaje para consultar y modificar datos de una base de datos relacional.
+- **Clave primaria:** columna o conjunto de columnas que identifica de forma única una fila.
+- **ORM:** herramienta que permite consultar y guardar filas mediante objetos del lenguaje de programación.
+- **Migración:** cambio registrado y aplicable a la estructura de una base de datos.
+- **Transacción:** grupo de operaciones que se confirman juntas con `commit()` o se descartan con `rollback()`.
+- **Validación:** comprobación de que los datos cumplen las reglas antes de usarlos.
