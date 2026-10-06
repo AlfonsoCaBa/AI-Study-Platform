@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 
 type ApiStatus = "loading" | "connected" | "error";
 
@@ -40,6 +41,7 @@ export default function HomePage() {
       <h1>AI Study Platform</h1>
       <p>Organiza tus cursos y notas de estudio.</p>
       <p role="status">{statusMessage}</p>
+      <Link href="/courses">Ver mis cursos</Link>
     </main>
   );
 }

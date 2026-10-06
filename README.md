@@ -20,7 +20,7 @@ Build a small full-stack application where users can organize courses and study 
 
 ## Status
 
-The backend exposes `GET /health`, `POST /courses`, and `GET /courses`. Courses are stored in PostgreSQL. The frontend home page at `/` currently checks only whether the API is reachable; the courses interface is the next step.
+The backend exposes `GET /health`, `POST /courses`, and `GET /courses`. Courses are stored in PostgreSQL. The frontend home page at `/` checks whether the API is reachable and links to `/courses`, where users can list and create courses.
 
 ## Run the backend locally (Windows PowerShell)
 
@@ -104,3 +104,18 @@ Common problems:
 - **`Missing variables in the root .env`:** check that the three `POSTGRES_*` values are present and nonempty.
 
 This API currently has no accounts or ownership checks. It is for local development; authentication and authorization are later milestones.
+
+## Create and list courses from the frontend
+
+Start PostgreSQL, FastAPI on port 8000 and Next.js on port 3000 using the instructions above. Apply the backend migration first if you have not already done so.
+
+1. Open `http://localhost:3000` and follow **Ver mis cursos** to `/courses`.
+2. Wait for the saved courses to load. An empty database shows **Todavía no tienes cursos**.
+3. Enter a name and select **Crear curso**. The button shows **Guardando…** during the request. A successful response adds the saved course to the list and clears the input.
+4. Reload the page. The course should return from PostgreSQL through `GET /courses`.
+5. Try a name made only of spaces: it should show an error without sending a creation request. The input accepts at most 100 characters; the API also validates the name.
+6. Stop FastAPI and reload `/courses`. Expect an error and a **Reintentar** button. Restart FastAPI and select **Reintentar** to recover the list.
+
+If saving cannot be confirmed, the form keeps the name. Reload and check the list before submitting again: a lost response can occur after the server saved the course. Requests time out after 10 seconds. Duplicate names are still allowed.
+
+The page uses React state for the form and list, and browser `fetch` requests to the existing API. The initial request is cancelled when leaving the page. PostgreSQL credentials remain in the backend; the browser only receives course JSON.

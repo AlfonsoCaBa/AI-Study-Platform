@@ -7,6 +7,7 @@ AI Study Platform es un proyecto para aprender desarrollo de software construyen
 1. [Estado inicial del proyecto](#estado-inicial-del-proyecto)
 2. [PostgreSQL local](#postgresql-local)
 3. [Cursos: tabla y API](#cursos-tabla-y-api)
+4. [Cursos desde el frontend](#cursos-desde-el-frontend)
 
 Los siguientes hitos se añadirán cuando se documenten. Cada uno usará las mismas secciones: objetivo, archivos modificados, flujo, conceptos nuevos, decisiones importantes y dudas pendientes.
 
@@ -153,6 +154,53 @@ El usuario aplicó la migración y creó un curso desde `/docs` con respuesta `2
 
 Queda aclarar por qué en una consulta desde `/docs` no se vio el curso tras reiniciar FastAPI. Las consultas directas a PostgreSQL y a la API sí mostraron los datos. Cerrar o dejar abiertos los paneles **Try it out** no cambia las filas guardadas.
 
+## Cursos desde el frontend
+
+### Objetivo
+
+Crear y consultar cursos desde `/courses`, usando la API existente. Se verificaron el build de Next.js y TypeScript, y una prueba de navegador con respuestas simuladas de la API: navegación, lista vacía, validación, creación, bloqueo durante el envío, recarga, respuestas `422` y `503`, conservación del texto y reintento.
+
+El usuario completó la prueba manual con FastAPI y PostgreSQL reales: vio los cursos existentes, creó `Programación`, comprobó que apareció en la lista y que el campo quedó vacío, y confirmó que el curso seguía presente tras recargar. Un nombre de sólo espacios mostró el mensaje de validación sin añadir un curso. Al detener FastAPI y recargar apareció el error; después de reiniciar la API y pulsar **Reintentar**, la lista volvió a cargarse. Con estas comprobaciones se completa el hito de crear y listar cursos desde la interfaz.
+
+### Archivos modificados
+
+- `frontend/app/courses/page.tsx`: página con formulario, lista y mensajes de carga, éxito y error. Define el tipo `Course` y comprueba la forma del JSON recibido.
+- `frontend/app/page.tsx`: enlace a la página de cursos mediante `Link`.
+- `README.md`: pasos para probar la interfaz con los tres servicios encendidos.
+- `docs/learning-log.md`: registro de esta segunda parte del hito de cursos.
+
+### Flujo sencillo
+
+1. Next.js asocia `app/courses/page.tsx` con la ruta `/courses`.
+2. Al abrirla, `useEffect` pide `GET /courses`; `useState` guarda la lista y actualiza la pantalla.
+3. El campo usa `value` y `onChange` para mantener lo escrito en el estado `name`.
+4. Al enviar el formulario, `preventDefault()` evita la navegación normal del formulario. Se valida el nombre y se envía un JSON a `POST /courses`.
+5. Tras la confirmación de la API, se añade el curso devuelto a la lista con su `id`, se limpia el campo y se muestra el éxito.
+6. Al recargar, la lista vuelve a consultarse a la API. React conserva el estado mientras la página está montada; PostgreSQL conserva los datos guardados.
+
+### Conceptos nuevos
+
+- **Formulario controlado:** el valor del campo está en el estado de React y cambia mediante `onChange`.
+- **Evento de envío:** `onSubmit` permite responder tanto al botón como a la tecla Enter.
+- **Actualización funcional del estado:** `setCourses((current) => [...current, course])` usa la lista más reciente para añadir el curso.
+- **Clave de React:** `key={course.id}` identifica cada elemento, incluso cuando hay nombres repetidos.
+- **Cancelación y tiempo de espera:** `AbortController` cancela la carga al abandonar la página; las peticiones tienen un límite de 10 segundos.
+- **Estado de envío:** `saving` permite mostrar progreso y desactivar el formulario mientras se espera la respuesta.
+
+### Decisiones importantes
+
+- Usar una ruta propia para cursos y conservar el enlace de vuelta al inicio.
+- Mantener formulario y lista en un componente pequeño antes de introducir componentes o utilidades compartidas.
+- Realizar las peticiones desde el navegador, como en la comprobación de `/health`; la API ya permite `GET` y `POST` mediante CORS local.
+- Esperar a que termine la carga inicial antes de permitir crear un curso, evitando que una respuesta de listado antigua sobrescriba el curso nuevo.
+- Actualizar la lista sólo tras recibir la confirmación de creación del servidor.
+- Conservar el texto ante fallas de guardado y pedir comprobar la lista antes de repetir un envío cuyo resultado no se pudo confirmar.
+- Mantener la validación del backend como comprobación definitiva; la validación del formulario ayuda a corregir errores antes de enviar.
+
+### Dudas pendientes
+
+No hay dudas personales nuevas registradas. La prueba manual con los servicios reales y la comprobación de persistencia al recargar se completaron.
+
 ## Glosario
 
 - **Frontend:** parte de la aplicación con la que interactúa el usuario en el navegador.
@@ -172,3 +220,5 @@ Queda aclarar por qué en una consulta desde `/docs` no se vio el curso tras rei
 - **Migración:** cambio registrado y aplicable a la estructura de una base de datos.
 - **Transacción:** grupo de operaciones que se confirman juntas con `commit()` o se descartan con `rollback()`.
 - **Validación:** comprobación de que los datos cumplen las reglas antes de usarlos.
+- **Formulario controlado:** formulario cuyos valores se mantienen en el estado de React.
+- **AbortController:** mecanismo del navegador para cancelar una operación, como una petición `fetch`.
