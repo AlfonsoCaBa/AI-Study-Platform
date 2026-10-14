@@ -20,7 +20,7 @@ Build a small full-stack application where users can organize courses and study 
 
 ## Status
 
-The backend exposes `GET /health`, `POST /courses`, and `GET /courses`. Courses are stored in PostgreSQL. The frontend home page at `/` checks whether the API is reachable and links to `/courses`, where users can list and create courses.
+The backend exposes `GET /health`, `POST /courses`, `GET /courses`, and `POST`/`GET /courses/{course_id}/notes`. Courses and notes are stored in PostgreSQL. The frontend home page at `/` checks whether the API is reachable and links to `/courses`, where users can list and create courses. Notes are currently available through the API documentation.
 
 ## Run the backend locally (Windows PowerShell)
 
@@ -119,3 +119,34 @@ Start PostgreSQL, FastAPI on port 8000 and Next.js on port 3000 using the instru
 If saving cannot be confirmed, the form keeps the name. Reload and check the list before submitting again: a lost response can occur after the server saved the course. Requests time out after 10 seconds. Duplicate names are still allowed.
 
 The page uses React state for the form and list, and browser `fetch` requests to the existing API. The initial request is cancelled when leaving the page. PostgreSQL credentials remain in the backend; the browser only receives course JSON.
+
+## Create and list notes for a course
+
+With PostgreSQL running, apply the new migration from the project root:
+
+```powershell
+backend/.venv/Scripts/python.exe -m alembic -c backend/alembic.ini upgrade head
+```
+
+This creates `notes` with a foreign key to `courses.id` and an index on `course_id`. It keeps existing courses. Restart FastAPI if necessary and open `http://127.0.0.1:8000/docs`; the new routes appear under **notes**.
+
+1. Execute `GET /courses` and choose an existing course's `id`.
+2. In `POST /courses/{course_id}/notes`, select **Try it out**, enter that `course_id` in the path parameter, and submit:
+
+   ```json
+   {
+     "title": "Linear equations",
+     "content": "An equation expresses equality between two expressions."
+   }
+   ```
+
+3. Expect `201` with `id`, `course_id`, `title`, and `content`.
+4. Execute `GET /courses/{course_id}/notes` with the same course. Expect `200` with its notes ordered by `id`. An existing course without notes returns `[]`.
+5. Repeat the list request for a different existing course: the first course's notes should not appear there.
+6. Send a blank title or content, such as `{"title": " ", "content": "Valid"}`. Expect `422` without a new note.
+7. Use a positive `course_id` that is absent from `GET /courses`: both note routes should return `404 Course not found`.
+8. Stop and restart FastAPI, then list the notes again. They should still be present.
+
+The title accepts 1–100 characters after trimming surrounding whitespace. Content accepts 1–10,000 characters, preserves indentation and line breaks, and must contain something other than whitespace. Both fields are required and stored as plain text. Set `course_id` in the URL; the request body contains only `title` and `content`. Titles may repeat. Invalid path identifiers (zero, negative, or non-integer) return `422`.
+
+`backend/app/api/notes.py` groups the note routes in an `APIRouter`, registered by `main.py`. Listing filters by `course_id`. The foreign key prevents notes from referencing absent courses; user ownership checks will be introduced with authentication and authorization. If PostgreSQL reports that `notes` does not exist, apply the migration above.

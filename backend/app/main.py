@@ -7,6 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
 
+from app.api.notes import router as notes_router
 from app.db import get_session
 from app.models import Course
 from app.schemas import CourseCreate, CourseRead
@@ -19,6 +20,7 @@ app.add_middleware(
     allow_methods=["GET", "POST"],
     allow_headers=["Content-Type"],
 )
+app.include_router(notes_router)
 
 
 @app.get("/health")

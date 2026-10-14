@@ -8,6 +8,7 @@ AI Study Platform es un proyecto para aprender desarrollo de software construyen
 2. [PostgreSQL local](#postgresql-local)
 3. [Cursos: tabla y API](#cursos-tabla-y-api)
 4. [Cursos desde el frontend](#cursos-desde-el-frontend)
+5. [Notas: tabla y API](#notas-tabla-y-api)
 
 Los siguientes hitos se añadirán cuando se documenten. Cada uno usará las mismas secciones: objetivo, archivos modificados, flujo, conceptos nuevos, decisiones importantes y dudas pendientes.
 
@@ -201,6 +202,59 @@ El usuario completó la prueba manual con FastAPI y PostgreSQL reales: vio los c
 
 No hay dudas personales nuevas registradas. La prueba manual con los servicios reales y la comprobación de persistencia al recargar se completaron.
 
+## Notas: tabla y API
+
+### Objetivo
+
+Crear y listar notas asociadas a un curso mediante la API. Cada nota tiene `id`, `course_id`, título y contenido. Esta es la primera parte del hito de notas, que continuará con la interfaz y después con edición y eliminación.
+
+La migración y las rutas se comprobaron en PostgreSQL con un esquema temporal separado. Pasaron creación y listado, separación entre dos cursos, normalización del título, conservación de saltos de línea y sangría, límites de longitud, rechazo de entradas inválidas (`422`) y curso inexistente (`404`). La base rechazó una inserción directa con un curso inexistente mediante la clave foránea. Las notas se recuperaron desde un proceso nuevo de Python. También se verificaron la repetición de la migración, su concordancia con el modelo mediante `alembic check` y la reversión de la migración de notas conservando los cursos de prueba. El esquema temporal se eliminó al terminar.
+
+El usuario aplicó `0002_create_notes` y completó la prueba manual desde `/docs`: creó la nota `Ecuaciones lineales` para el curso `2` (`Algebra`) con respuesta `201`, y la recuperó con `GET` (`200`). El curso `1` devolvió `200` y una lista vacía, confirmando la separación por curso. Un título de sólo espacios recibió `422`; un curso inexistente recibió `404`. Después de reiniciar FastAPI, la misma nota seguía presente con `id: 1`. Con estas comprobaciones se completa la primera parte del hito de notas: tabla y API.
+
+### Archivos modificados
+
+- `backend/app/models.py`: añade `Note`, su referencia a `courses.id`, restricciones e índice por `course_id`.
+- `backend/app/schemas.py`: añade `NoteCreate`, validación del contenido y `NoteRead`.
+- `backend/app/api/__init__.py`: identifica `api` como paquete de Python.
+- `backend/app/api/notes.py`: agrupa las rutas de creación y listado de notas.
+- `backend/app/main.py`: registra el router de notas.
+- `backend/migrations/versions/0002_create_notes.py`: crea `notes` después de la migración de cursos.
+- `README.md`: instrucciones de migración, prueba manual y reglas de validación.
+- `docs/learning-log.md`: registra esta primera parte del hito de notas.
+
+### Flujo sencillo
+
+1. En `/docs` se elige un `course_id` obtenido de `GET /courses`.
+2. Se envía `POST /courses/{course_id}/notes` con `title` y `content` en JSON. El curso se indica en la URL.
+3. Pydantic valida el identificador y los datos. FastAPI comprueba que el curso existe.
+4. SQLAlchemy guarda una fila en `notes` con ese `course_id` y confirma la escritura con `commit()`.
+5. La API devuelve `201` con la nota guardada. El listado consulta sólo las notas del curso de la URL y las ordena por `id`.
+
+### Conceptos nuevos
+
+- **Relación uno a muchos:** un curso puede tener varias notas; cada nota pertenece a un curso.
+- **Clave foránea:** `notes.course_id` debe referirse a un `courses.id` existente.
+- **Parámetro de ruta:** `{course_id}` es una parte variable de la URL y FastAPI comprueba que sea un entero positivo.
+- **Router:** grupo de rutas relacionadas que se registra en la aplicación con `include_router()`.
+- **Validador de campo:** función que revisa una regla adicional, como rechazar contenido de sólo espacios sin modificar la sangría del texto válido.
+- **Índice:** estructura de la base que facilita buscar las notas por `course_id`.
+
+### Decisiones importantes
+
+- Usar una clave foránea obligatoria para vincular las notas a cursos existentes.
+- Validar el curso en las dos rutas para devolver `404` cuando no existe; un curso existente sin notas devuelve una lista vacía.
+- Admitir títulos de 1–100 caracteres después de quitar espacios de los extremos y contenido de 1–10 000 caracteres. El contenido conserva el formato y se valida para impedir texto de sólo espacios.
+- Obtener `course_id` de la URL y aceptar sólo título y contenido en el JSON.
+- Filtrar el listado por curso y permitir títulos repetidos, identificando cada nota mediante su `id`.
+- Añadir un router de notas para agrupar las nuevas rutas, conservando una sola aplicación FastAPI.
+- Mantener la consulta y escritura explícitas en el router mientras no haya reglas de negocio que necesiten una capa propia.
+- El filtro por curso organiza las notas. La comprobación de propietario se incorporará con autenticación y autorización.
+
+### Dudas pendientes
+
+Duda aclarada: las peticiones de cursos y notas necesitan PostgreSQL en ejecución; en esta configuración local se mantienen Docker Desktop, el contenedor de PostgreSQL y FastAPI encendidos durante las pruebas. La migración y la prueba manual de esta parte están completadas. No hay otras dudas personales nuevas registradas.
+
 ## Glosario
 
 - **Frontend:** parte de la aplicación con la que interactúa el usuario en el navegador.
@@ -222,3 +276,8 @@ No hay dudas personales nuevas registradas. La prueba manual con los servicios r
 - **Validación:** comprobación de que los datos cumplen las reglas antes de usarlos.
 - **Formulario controlado:** formulario cuyos valores se mantienen en el estado de React.
 - **AbortController:** mecanismo del navegador para cancelar una operación, como una petición `fetch`.
+- **Clave foránea:** columna que referencia una clave de otra tabla para mantener válidas las relaciones entre filas.
+- **Relación uno a muchos:** relación en la que una fila de una tabla puede estar asociada a varias filas de otra.
+- **Router:** grupo de rutas relacionadas que se incorpora a una aplicación.
+- **Parámetro de ruta:** valor incluido en la URL que identifica el recurso solicitado.
+- **Índice:** estructura que facilita búsquedas en una tabla.
