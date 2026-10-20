@@ -128,7 +128,17 @@ export default function CoursesPage() {
       {loadStatus === "loaded" && (
         courses.length === 0 ? <p>Todavía no tienes cursos.</p> : (
           <ul>
-            {courses.map((course) => <li key={course.id}>{course.name}</li>)}
+            {courses.map((course) => (
+              <li key={course.id}>
+                {course.name}{" — "}
+                <Link
+                  href={`/courses/${course.id}/notes`}
+                  aria-label={`Ver notas de ${course.name}, curso ${course.id}`}
+                >
+                  Ver notas (curso {course.id})
+                </Link>
+              </li>
+            ))}
           </ul>
         )
       )}

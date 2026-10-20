@@ -2,6 +2,8 @@
 
 AI Study Platform es un proyecto para aprender desarrollo de software construyendo, paso a paso, una aplicación de estudio. La meta inicial es organizar cursos y notas; las funciones de inteligencia artificial están previstas para etapas posteriores. Este registro documentará lo que se construye, las decisiones tomadas y las dudas que surjan, sin asumir que un concepto ya está dominado por aparecer en el código.
 
+Para las pruebas futuras, el usuario prefiere recibir la indicación breve **«corre Docker, frontend y backend»**, porque ya sabe iniciar estos servicios. Las comprobaciones de cada función se seguirán guiando paso a paso.
+
 ## Índice de hitos
 
 1. [Estado inicial del proyecto](#estado-inicial-del-proyecto)
@@ -9,6 +11,7 @@ AI Study Platform es un proyecto para aprender desarrollo de software construyen
 3. [Cursos: tabla y API](#cursos-tabla-y-api)
 4. [Cursos desde el frontend](#cursos-desde-el-frontend)
 5. [Notas: tabla y API](#notas-tabla-y-api)
+6. [Notas desde el frontend](#notas-desde-el-frontend)
 
 Los siguientes hitos se añadirán cuando se documenten. Cada uno usará las mismas secciones: objetivo, archivos modificados, flujo, conceptos nuevos, decisiones importantes y dudas pendientes.
 
@@ -255,6 +258,57 @@ El usuario aplicó `0002_create_notes` y completó la prueba manual desde `/docs
 
 Duda aclarada: las peticiones de cursos y notas necesitan PostgreSQL en ejecución; en esta configuración local se mantienen Docker Desktop, el contenedor de PostgreSQL y FastAPI encendidos durante las pruebas. La migración y la prueba manual de esta parte están completadas. No hay otras dudas personales nuevas registradas.
 
+## Notas desde el frontend
+
+### Objetivo
+
+Consultar y crear notas desde la página de cada curso, usando las rutas existentes de la API. Esta segunda parte del hito de notas añade la interfaz de creación y lectura; edición y eliminación serán la siguiente parte.
+
+El build de Next.js y TypeScript se completaron correctamente. Se ejecutaron pruebas de navegador en Edge con respuestas simuladas de la API: enlaces por curso, notas existentes y lista vacía, creación y recarga, título recortado, contenido original con saltos y sangría, texto con apariencia de HTML mostrado literalmente, límites de caracteres con emojis, bloqueo durante carga y guardado, conservación de los campos ante `422` y `503`, reintento de carga, curso inexistente e identificador inválido. También se comprobó la navegación durante peticiones de carga y guardado pendientes sin mezclar notas ni borradores entre cursos.
+
+La prueba a 375 píxeles de ancho detectó que un título de 100 letras sin espacios desbordaba la pantalla. Se ajustó el salto de palabras y se verificaron tanto la nota existente como una recién creada con su mensaje de éxito, sin desbordamiento horizontal.
+
+El usuario completó la prueba manual con FastAPI y PostgreSQL reales: vio `Ecuaciones lineales` en el curso `2`, creó `Sistemas de ecuaciones` con contenido de dos líneas y comprobó que ambos campos se vaciaron y la nota persistió al recargar. El curso `1` mostró el estado vacío y el curso `2` conservó sus notas. Los títulos y contenidos de sólo espacios mostraron errores sin añadir notas. Tras detener el backend y recargar, apareció el error de carga; al reiniciarlo y pulsar **Reintentar**, las notas volvieron a mostrarse. Estas comprobaciones completan la segunda parte del hito de notas: creación y lectura desde el frontend.
+
+### Archivos modificados
+
+- `frontend/app/courses/page.tsx`: añade el enlace a las notas de cada curso, indicando su identificador para distinguir cursos con nombres repetidos.
+- `frontend/app/courses/[courseId]/notes/page.tsx`: lee el identificador de la URL y contiene el formulario, listado y estados de carga, guardado, error y curso inexistente.
+- `README.md`: explica cómo iniciar los servicios y comprobar la interfaz de notas.
+- `docs/learning-log.md`: registra esta parte del hito.
+
+### Flujo sencillo
+
+1. En la lista de cursos se selecciona **Ver notas**. Un curso con identificador `2` abre `/courses/2/notes`.
+2. `useParams` lee `courseId` y comprueba que representa un entero positivo. La página solicita `GET /courses/2/notes`.
+3. El título y contenido del formulario se mantienen en el estado de React. El contenido usa un `textarea` para admitir varias líneas.
+4. Al enviar se valida el título y el contenido; después se hace `POST` con el título recortado y el contenido original, conservando su formato.
+5. Tras la confirmación del servidor se añade la nota devuelta, se limpian los campos y se muestra el éxito. Al recargar, las notas vuelven a consultarse a la API.
+6. Al cambiar de curso se reinicia el estado del formulario y listado. Las respuestas pendientes de la página anterior no añaden notas al curso nuevo.
+
+### Conceptos nuevos
+
+- **Ruta dinámica:** `[courseId]` es una parte variable de la URL que identifica el curso.
+- **`useParams`:** hook de Next.js para leer los valores de los segmentos dinámicos.
+- **`textarea` controlado:** campo de varias líneas cuyo contenido se mantiene en el estado de React.
+- **Reinicio por `key`:** cambiar la clave de un componente hace que React cree una instancia con estado inicial. Aquí se usa para el formulario y listado de cada curso.
+- **Formato del texto:** `white-space: pre-wrap` conserva espacios y saltos de línea al mostrar el contenido. React muestra el texto sin interpretarlo como HTML.
+
+### Decisiones importantes
+
+- Usar una página de notas por identificador y un enlace de vuelta a cursos.
+- Mostrar el identificador del curso en el encabezado y reutilizar las rutas de notas existentes.
+- Mantener los componentes de la página en un archivo mientras el alcance es pequeño. `NotesPage` lee y valida el identificador; `CourseNotes` contiene la interacción y se reinicia mediante su `key`.
+- Diferenciar un curso inexistente (`404`, sin formulario), uno sin notas (`200` con lista vacía) y un error de carga recuperable con **Reintentar**.
+- Desactivar el formulario durante carga o guardado y añadir la nota sólo después de la confirmación de la API.
+- Contar los caracteres con `Array.from` para que los límites coincidan con los puntos de código Unicode contados por Python, incluidos los emojis.
+- Usar `trim()` para validar que el contenido no esté vacío, conservando el contenido original al enviarlo.
+- Conservar ambos campos si el guardado no se puede confirmar y pedir revisar la lista antes de reenviar. Un guardado pendiente puede completarse en el servidor aunque se abandone la página.
+
+### Dudas pendientes
+
+No hay dudas personales nuevas registradas. Se completaron la prueba manual con los servicios reales, la separación de notas entre cursos, la persistencia al recargar y la recuperación tras reiniciar el backend.
+
 ## Glosario
 
 - **Frontend:** parte de la aplicación con la que interactúa el usuario en el navegador.
@@ -281,3 +335,5 @@ Duda aclarada: las peticiones de cursos y notas necesitan PostgreSQL en ejecuci�
 - **Router:** grupo de rutas relacionadas que se incorpora a una aplicación.
 - **Parámetro de ruta:** valor incluido en la URL que identifica el recurso solicitado.
 - **Índice:** estructura que facilita búsquedas en una tabla.
+- **Ruta dinámica:** ruta con un segmento variable, como el identificador de un curso.
+- **`textarea`:** campo de formulario para texto de varias líneas.

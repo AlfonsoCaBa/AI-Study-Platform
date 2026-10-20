@@ -20,7 +20,7 @@ Build a small full-stack application where users can organize courses and study 
 
 ## Status
 
-The backend exposes `GET /health`, `POST /courses`, `GET /courses`, and `POST`/`GET /courses/{course_id}/notes`. Courses and notes are stored in PostgreSQL. The frontend home page at `/` checks whether the API is reachable and links to `/courses`, where users can list and create courses. Notes are currently available through the API documentation.
+The backend exposes `GET /health`, `POST /courses`, `GET /courses`, and `POST`/`GET /courses/{course_id}/notes`. Courses and notes are stored in PostgreSQL. The frontend home page at `/` checks whether the API is reachable and links to `/courses`, where users can list and create courses. Each course links to `/courses/{courseId}/notes` to list and create its notes.
 
 ## Run the backend locally (Windows PowerShell)
 
@@ -150,3 +150,22 @@ This creates `notes` with a foreign key to `courses.id` and an index on `course_
 The title accepts 1–100 characters after trimming surrounding whitespace. Content accepts 1–10,000 characters, preserves indentation and line breaks, and must contain something other than whitespace. Both fields are required and stored as plain text. Set `course_id` in the URL; the request body contains only `title` and `content`. Titles may repeat. Invalid path identifiers (zero, negative, or non-integer) return `422`.
 
 `backend/app/api/notes.py` groups the note routes in an `APIRouter`, registered by `main.py`. Listing filters by `course_id`. The foreign key prevents notes from referencing absent courses; user ownership checks will be introduced with authentication and authorization. If PostgreSQL reports that `notes` does not exist, apply the migration above.
+
+## Create and list notes from the frontend
+
+Start PostgreSQL, FastAPI on port 8000, and Next.js on port 3000. Apply the notes migration first if needed, using the command above.
+
+1. Open `http://localhost:3000/courses` and select **Ver notas** for a course. The page heading shows its identifier so courses with repeated names can be distinguished.
+2. Check that its saved notes appear. An existing course without notes shows **Este curso todavía no tiene notas** and lets you create one.
+3. Enter a title and multiline content, then select **Crear nota**. After the API confirms creation, the note appears and both fields clear.
+4. Reload the page to confirm the note is loaded again from PostgreSQL.
+5. Return to **Mis cursos** and open another course. The first course's notes and draft should not appear there.
+6. Submit a title or content made only of spaces. Expect a validation message without a creation request. The limits are 100 characters for the trimmed title and 10,000 for the original content.
+7. Stop FastAPI and reload the notes page. Expect an error and **Reintentar**. Restart FastAPI and select **Reintentar** to recover the list.
+8. Open a notes URL with a positive course identifier absent from the course list. Expect **Este curso no existe** and no creation form. An invalid identifier, such as `abc` or `0`, also blocks the form.
+
+Content is sent with its original indentation and line breaks and displayed as plain text. HTML-looking text is displayed literally. Titles may repeat. Validation in FastAPI remains authoritative.
+
+The page reads `courseId` from the URL with `useParams`. Its form and list have a React `key` based on the course identifier, which resets their state when the course changes. Loading is cancelled when leaving the course, and creation is blocked during initial loading or saving. Requests time out after 10 seconds.
+
+If a save cannot be confirmed, both fields are kept. Reload and check the course's notes before submitting again. Leaving during a save does not guarantee that the server cancels the write, so check that course's list when returning.
