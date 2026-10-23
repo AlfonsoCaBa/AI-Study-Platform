@@ -12,6 +12,7 @@ Para las pruebas futuras, el usuario prefiere recibir la indicación breve **«c
 4. [Cursos desde el frontend](#cursos-desde-el-frontend)
 5. [Notas: tabla y API](#notas-tabla-y-api)
 6. [Notas desde el frontend](#notas-desde-el-frontend)
+7. [Notas: edición y eliminación en la API](#notas-edición-y-eliminación-en-la-api)
 
 Los siguientes hitos se añadirán cuando se documenten. Cada uno usará las mismas secciones: objetivo, archivos modificados, flujo, conceptos nuevos, decisiones importantes y dudas pendientes.
 
@@ -309,6 +310,53 @@ El usuario completó la prueba manual con FastAPI y PostgreSQL reales: vio `Ecua
 
 No hay dudas personales nuevas registradas. Se completaron la prueba manual con los servicios reales, la separación de notas entre cursos, la persistencia al recargar y la recuperación tras reiniciar el backend.
 
+## Notas: edición y eliminación en la API
+
+### Objetivo
+
+Actualizar y eliminar una nota desde `/docs`, conservando el vínculo con su curso. Esta entrega añade las operaciones de API; la incorporación de los botones de edición y eliminación al frontend será la siguiente entrega.
+
+Se comprobó el contrato OpenAPI y se ejecutaron pruebas con PostgreSQL en un esquema temporal: `PUT` devolvió `200` manteniendo `id` y `course_id`, normalizó el título y conservó el contenido con su formato. Repetir el mismo `PUT` no creó filas. Las ediciones inválidas devolvieron `422` dejando intacta la versión anterior; pasaron los límites de 100 y 10 000 caracteres. Usar un curso equivocado o una pareja inexistente devolvió `404` sin cambiar ninguna nota. `DELETE` devolvió `204` con cuerpo vacío, conservó las demás notas y su repetición devolvió `404`. La edición y eliminación se confirmaron desde procesos nuevos de Python. También pasaron los preflight CORS de ambos métodos para los orígenes locales y el rechazo de otro origen, y las comprobaciones existentes de creación, listado y `/health`. Los datos y archivos temporales de prueba se retiraron al terminar.
+
+El usuario completó la prueba manual desde `/docs`: creó la nota temporal `3` en el curso `2`, la editó mediante `PUT` (`200`) y comprobó que conservó sus identificadores y las dos líneas actualizadas. Una edición con título de sólo espacios devolvió `422` y mantuvo la versión guardada. Usar el curso `1` con esa nota en `PUT` y `DELETE` devolvió `404` sin cambios. La edición persistió tras reiniciar el backend. Después, `DELETE` con la pareja correcta devolvió `204` vacío y retiró sólo la nota temporal; repetirlo devolvió `404`. Tras otro reinicio, la nota siguió ausente y las demás se conservaron. Se completa esta entrega de edición y eliminación en la API.
+
+### Archivos modificados
+
+- `backend/app/api/notes.py`: añade la búsqueda compartida por curso y nota, `PUT` para reemplazar título y contenido, y `DELETE` para eliminar la nota.
+- `backend/app/main.py`: amplía CORS para permitir `PUT` y `DELETE` desde los orígenes locales existentes.
+- `README.md`: explica el uso de las rutas y las pruebas con una nota creada para ello.
+- `docs/learning-log.md`: registra esta entrega.
+
+### Flujo sencillo
+
+1. Se elige una nota mediante los identificadores `course_id` y `note_id` de la URL.
+2. En una edición, Pydantic valida ambos campos completos usando las reglas de `NoteCreate`.
+3. `get_note_for_course` busca la fila que coincida con ambos identificadores. Si no la encuentra, devuelve `404 Note not found`.
+4. `PUT` actualiza el título y contenido, confirma la transacción y devuelve `200` con la nota, manteniendo su `id` y `course_id`.
+5. `DELETE` elimina la fila encontrada, confirma la transacción y devuelve `204` con cuerpo vacío.
+
+### Conceptos nuevos
+
+- **`PUT`:** operación que en esta API reemplaza los dos campos editables de una nota. Ambos son obligatorios.
+- **`DELETE`:** petición para eliminar el recurso identificado en la URL.
+- **`204 No Content`:** respuesta de éxito sin cuerpo; el cliente no debe intentar leerla como JSON.
+- **Búsqueda por dos identificadores:** la existencia de una nota no basta; debe coincidir también con el curso de la URL.
+- **Eliminación mediante la sesión:** `session.delete()` marca la fila para borrado; `session.commit()` confirma la operación en PostgreSQL.
+
+### Decisiones importantes
+
+- Reutilizar la tabla existente y `NoteCreate`, ya que los campos requeridos y sus reglas son iguales para creación y reemplazo completo.
+- Conservar el identificador y curso de la nota durante la edición. El cuerpo sólo acepta título y contenido.
+- Compartir una única función de búsqueda entre edición y eliminación para aplicar el filtro de la misma forma.
+- Devolver `404 Note not found` si no existe la pareja curso/nota, incluyendo el caso de usar el curso equivocado. Esta respuesta no afirma que el curso completo haya desaparecido.
+- Permitir los nuevos métodos mediante CORS local, manteniendo los métodos existentes.
+- Comprobar edición y eliminación con datos temporales; en la prueba manual se creará una nota específica para ello.
+- Mantener la comprobación de pertenencia al curso como regla de esta entrega. La autorización por propietario de usuario llegará con autenticación y autorización.
+
+### Dudas pendientes
+
+No hay dudas personales nuevas registradas. La prueba manual de edición y eliminación desde `/docs` y las comprobaciones de persistencia quedaron completadas.
+
 ## Glosario
 
 - **Frontend:** parte de la aplicación con la que interactúa el usuario en el navegador.
@@ -337,3 +385,6 @@ No hay dudas personales nuevas registradas. Se completaron la prueba manual con 
 - **Índice:** estructura que facilita búsquedas en una tabla.
 - **Ruta dinámica:** ruta con un segmento variable, como el identificador de un curso.
 - **`textarea`:** campo de formulario para texto de varias líneas.
+- **`PUT`:** método HTTP usado aquí para reemplazar todos los campos editables de un recurso.
+- **`DELETE`:** método HTTP para solicitar la eliminación de un recurso.
+- **`204 No Content`:** código de éxito para una respuesta sin cuerpo.

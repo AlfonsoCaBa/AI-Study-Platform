@@ -20,7 +20,7 @@ Build a small full-stack application where users can organize courses and study 
 
 ## Status
 
-The backend exposes `GET /health`, `POST /courses`, `GET /courses`, and `POST`/`GET /courses/{course_id}/notes`. Courses and notes are stored in PostgreSQL. The frontend home page at `/` checks whether the API is reachable and links to `/courses`, where users can list and create courses. Each course links to `/courses/{courseId}/notes` to list and create its notes.
+The backend exposes `GET /health`, `POST`/`GET /courses`, `POST`/`GET /courses/{course_id}/notes`, and `PUT`/`DELETE /courses/{course_id}/notes/{note_id}`. Courses and notes are stored in PostgreSQL. The frontend home page at `/` checks whether the API is reachable and links to `/courses`, where users can list and create courses. Each course links to `/courses/{courseId}/notes` to list and create its notes. Note updates and deletion are currently available through `/docs`.
 
 ## Run the backend locally (Windows PowerShell)
 
@@ -58,7 +58,7 @@ If npm reports `UNABLE_TO_VERIFY_LEAF_SIGNATURE` on Windows, run `$env:NODE_OPTI
 
 Start the backend and frontend in separate PowerShell terminals using the commands above. At `http://localhost:3000`, the page first shows a loading message and then `API conectada`. If the backend is stopped or unreachable, it shows `No se pudo conectar con la API`.
 
-The browser requests `http://127.0.0.1:8000/health`. Since the frontend runs on port 3000 and the API on port 8000, the backend allows the local frontend origins through CORS, including JSON `POST` requests for courses. The API URL is fixed for local development; we will make it configurable when deployment becomes relevant.
+The browser requests `http://127.0.0.1:8000/health`. Since the frontend runs on port 3000 and the API on port 8000, the backend allows the local frontend origins through CORS for `GET`, `POST`, `PUT`, and `DELETE`, including JSON requests. The API URL is fixed for local development; we will make it configurable when deployment becomes relevant.
 
 ## Run PostgreSQL locally (Windows PowerShell)
 
@@ -169,3 +169,28 @@ Content is sent with its original indentation and line breaks and displayed as p
 The page reads `courseId` from the URL with `useParams`. Its form and list have a React `key` based on the course identifier, which resets their state when the course changes. Loading is cancelled when leaving the course, and creation is blocked during initial loading or saving. Requests time out after 10 seconds.
 
 If a save cannot be confirmed, both fields are kept. Reload and check the course's notes before submitting again. Leaving during a save does not guarantee that the server cancels the write, so check that course's list when returning.
+
+## Update and delete notes through the API
+
+Run Docker, frontend and backend. Open `http://127.0.0.1:8000/docs` and use a newly created test note for these checks: deletion removes that row from PostgreSQL. These operations reuse the existing table and validation rules.
+
+1. Choose an existing course from `GET /courses`. Create a test note with `POST /courses/{course_id}/notes` and record the returned `id` as `note_id`.
+2. In `PUT /courses/{course_id}/notes/{note_id}`, use the same pair of identifiers and send both editable fields:
+
+   ```json
+   {
+     "title": "Updated test note",
+     "content": "First line.\nSecond line."
+   }
+   ```
+
+3. Expect `200` with the updated note. Its `id` and `course_id` should be unchanged. `PUT` requires both `title` and `content`; it reuses `NoteCreate` in `/docs`. The same limits and formatting rules apply as when creating a note.
+4. Execute `GET /courses/{course_id}/notes` to confirm the edit, then restart the backend and list again to verify persistence.
+5. Submit an invalid edit, such as `{"title": " ", "content": "Valid"}`. Expect `422` and confirm the previous saved version remains intact.
+6. Try `PUT` with valid content and `DELETE` using the test note's `note_id` under a different existing course. Both should return `404 Note not found`; the note should remain unchanged in its original course.
+7. Use `DELETE` with the correct `course_id` and `note_id`. Expect `204` with an empty response body. List the notes again: only the chosen test note should be gone.
+8. Repeat that `DELETE`: expect `404`. A restart and another list request should confirm that the deletion persisted.
+
+Both identifiers must be positive integers (`422` otherwise). A missing note, a missing course, or a note outside the course in the URL returns `404 Note not found` for these two operations. A `404` here refers to the requested course/note pair; it does not establish whether the course itself exists.
+
+`get_note_for_course` in `backend/app/api/notes.py` searches using both identifiers before either operation. `PUT` assigns the validated fields, then confirms with `session.commit()`. `DELETE` calls `session.delete()` and commits. The empty `204` response should not be parsed as JSON by a client. Course membership is checked here; user ownership remains part of the later authentication and authorization milestones.
